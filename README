@@ -1,0 +1,47 @@
+
+Introduction
+============
+
+PEAP, (Protein Enrichment Annotation Platform), a software for predicting the effect of pathways.
+
+
+Downloading page
+================
+
+https://github.com/xidan21/PEAP
+
+
+
+Requirements 
+============
+
+Python 2.7 or higher
+
+
+R 3.6 or higher
+
+
+
+Installation
+============
+
+None
+
+
+
+How to run ?
+============
+
+To run PEAP, start terminal to enter "$peap/bin/" and type:
+
+python peap
+
+
+NOTE: 1) The resut will be in "$peap/result/pathway_analysis.txt"  
+
+      2) The enrichment plot will be in "$peap/resource/".
+
+
+
+
+

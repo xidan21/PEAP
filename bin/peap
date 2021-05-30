@@ -1,0 +1,244 @@
+#!/usr/bin/env python
+
+import sys
+import subprocess
+
+from Tkinter import *
+from tkFileDialog import *
+
+class MyCode(object):
+	def __init__(self):
+		root = Tk()
+		root.title('welcome to use PEAP!')
+		screen_width = root.winfo_screenwidth()
+		screen_height = root.winfo_screenheight() 
+		#print screen_width,screen_height
+		
+		x = (screen_width/2) - (855/2) 
+		y = (screen_height/2) - (1100/2)
+		root.geometry('%dx%d+%d+%d' % (755, 660, x, y))
+
+		#root.geometry("%dx%d%+d%+d" % (900, 750, 0, 0))
+     		 
+		self.species = StringVar()
+		self.inputfile = StringVar()
+		self.mutated_aa = StringVar()
+		self.email = StringVar()
+
+######################## title ############################
+
+		Label(root,width=10,text='PEAP',fg='blue',font=("Helvetica", 56)).place(x=210,y=40)
+		Label(root,width=50,text='Pathway Enrichment Analysis Platform',fg='blue',font=("Helvetica", 16)).place(x=169,y=130)
+
+######################## load background ############################
+
+#                image5 = PhotoImage(file="../figure/cloud.gif")
+ #               panel_background= Label(root, image=image5)
+  #              panel_background.place(x=546,y=1)
+
+#########################load an entry####################      
+
+                Label(root,text='Please select the species',fg='green').place(x=281,y=175)
+                self.species.set("Human")
+
+
+
+
+
+
+
+
+
+
+
+
+
+                OptionMenu(root,self.species,
+		"Mouse",
+		"Rat",
+      		 ).place(x = 310, y = 206)
+
+
+		Label(root,text='Please upload your Bulk-RNA seq analysis file.',fg='green').place(x=235,y=279)
+		self.e = Entry(root, width=16,textvariable=self.inputfile)
+		self.e.place(x=290,y=310)
+ 
+		B = Button(root,text='Upload',command=self.Onload)
+		B.place(x=466,y=310)
+
+      		Label(root, text = "NOTE: The calcualtion may take around 15 mins, please be patient.", fg='green').place(x = 175, y = 386)
+#########################load run button##################
+
+		button = Button(root,text='RUN',fg='red',command=self.Run)
+		button.place(x=335,y=466 )
+
+	#########################upload image#####################     
+
+		image2 = PhotoImage(file="../figure/ki.gif")
+		panel_2 = Label(root, image=image2)      
+		panel_2.image = image2
+		panel_2.place(x=79,y=559)
+      
+		image3 = PhotoImage(file="../figure/slu.gif")
+		panel_3 = Label(root, image=image3)
+      
+		panel_3.image = image3
+		panel_3.place(x=560,y=535)
+
+######################load menu bar#######################      
+
+		menubar = Menu(root)
+		filemenu = Menu(menubar)      
+		menubar.add_cascade(label='File', menu=filemenu)
+		filemenu.add_command(label='New Project')
+		filemenu.add_command(label='load...', command=self.Onload)
+		filemenu.add_command(label='open...', command=self.open_as)
+      
+		helpmenu = Menu(menubar)
+		menubar.add_cascade(label="Help", menu=helpmenu)
+		helpmenu.add_command(label="About...", command=self.create_a_child_window_for_readme)
+		filemenu.add_command(label='Exit', command=root.quit)      
+		root.config(menu=menubar)
+
+		root.mainloop()
+      
+####################################################################################################   
+   
+        def Onload(self):
+		self.e.delete(0, END)
+		fileName = askopenfilename(filetypes=[("Text files", "*.txt"), ("Fasta files", "*.fa")])
+		self.e.insert(0, fileName)
+
+	def create_a_child_window_for_readme(self):
+
+
+		# create the root window
+		root_3 = Tk()
+		text = Text(root_3)
+
+		# modify the window
+		root_3.title("READ ME")
+		root_3.geometry("1000x1000")
+      
+		myTextWidget= Text(root_3) # set up a text widget as a root (window) child
+
+		myFile= file("../README") # get a file handle
+		myText=myFile.read() # read the file to variable
+		myFile.close() # close file handle
+
+		myTextWidget.insert(0.0,myText) # insert the file's text into the text widget
+      
+		myTextWidget.pack(expand=1, fill=BOTH) # show the widget
+
+		root_3.mainloop()
+
+	def create_a_child_window_for_result(self):
+
+		root_2 = Tk()
+		text = Text(root_2)
+
+		root_2.title("RESULT")
+		root_2.geometry("900x556")
+      
+		myTextWidget= Text(root_2) # set up a text widget as a root (window) child
+
+
+
+
+
+
+
+
+
+
+
+		myFile=file("../result/pathway_analysis.txt") # get a file handle
+		myText= myFile.read() # read the file to variable
+		myFile.close() # close file handle
+
+		myTextWidget.insert(0.0,myText) # insert the file's text into the text widget
+      
+		myTextWidget.pack(expand=1, fill=BOTH) # show the widget
+
+		root_2.mainloop()
+	
+	def create_a_child_window(self,filename):
+		root_local = Tk()
+		text = Text(root_local)
+
+		root_local.title(filename)
+		root_local.geometry("900x900")
+      
+		myTextWidget= Text(root_local) # set up a text widget as a root (window) child
+
+		myFile=file(filename) # get a file handle
+		myText= myFile.read() # read the file to variable
+		myFile.close() # close file handle
+
+		myTextWidget.insert(0.0,myText) # insert the file's text into the text widget
+      
+		myTextWidget.pack(expand=1, fill=BOTH) # show the widget
+		
+		menubar_local = Menu(root_local)
+	#	root_local.config(menu=menubar_local)
+		
+		filemenu_local = Menu(menubar_local)      
+		menubar_local.add_cascade(label="File", menu=filemenu_local)		
+		filemenu_local.add_command(label="Save...", command=self.file_save)
+		filemenu_local.add_command(label="Exit...", command=root_local.quit)
+        
+		helpmenu_local = Menu(menubar_local)		
+		menubar_local.add_cascade(label="Help", menu=helpmenu_local)
+		helpmenu_local.add_command(label="About...", command=self.create_a_child_window_for_readme)
+	
+		root_local.config(menu=menubar_local)
+		
+		root_local.mainloop()
+	
+	def Run(self):
+		print
+       		print "######################################################################################"
+		print "                           Welcome to using PEAP!"
+		print "######################################################################################"
+		print 
+		print
+		print 
+		print
+		
+		subprocess.call(['bash pipeline_total.bash %s %s' %(self.inputfile.get(),self.species.get())], shell=True)
+
+		try:
+			open("../result/pathway_analysis.txt")
+			self.create_a_child_window_for_result()
+	
+		except IOError as e:
+			print 'Oh dear.'
+
+   	def open_as(self):
+		fileName_2 = askopenfilename(filetypes=[("Text and Python files","*.fa *.txt *.py *.pyw"), 
+		     ("HTML files","*.htm"), 
+		     ("All files","*.*")])
+		
+		try:
+		
+			self.create_a_child_window(fileName_2)
+		
+		except IOError:
+		
+			from tkMessageBox import showwarning
+			showwarning("Open", "Cannot open the file.")	
+			raise Cancel
+		 
+	def file_save(self):
+
+		fout = asksaveasfile(mode='w', defaultextension=".txt")
+		text2save = str(self.text.get(1.0,END))
+		fout.write(text2save)
+		fout.close()
+
+
+if __name__=='__main__':    
+
+	myApp = MyCode()
+
+
