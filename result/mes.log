@@ -1,0 +1,515 @@
+
+R version 3.6.0 (2019-04-26) -- "Planting of a Tree"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R -- это свободное ПО, и оно поставляется безо всяких гарантий.
+Вы вольны распространять его при соблюдении некоторых условий.
+Введите 'license()' для получения более подробной информации.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Введите 'demo()' для запуска демонстрационных программ, 'help()' -- для
+получения справки, 'help.start()' -- для доступа к справке через браузер.
+Введите 'q()', чтобы выйти из R.
+
+> #!/bin/bash
+> 
+> 
+> 
+> 
+> 
+> 
+> #require("biomaRt")
+> argv <- commandArgs(trailingOnly=T)
+> 
+> w <- read.csv(argv[1], header = T, sep = "\t")
+> #w <- read.csv("scr_vs_i_keep_dup_comparsion_ranked_ensembl_ids.txt", header = T, sep = "\t")
+> 
+> 
+> # nPerm have to be less than the number of total inputList
+> 
+> gsea <- function(inputSet, inputList, nPerm, setName){
++ 
++ 	######################### clean input NA ##########################
++ 
++ 	geneSet <- inputSet[which(!is.na (inputSet))]
++ 	geneList <- inputList[which(!is.na (inputList))]	
++ 
++ 	per_matrix <- data.frame(geneList,replicate(nPerm-1, sample(geneList, length(geneList))))
++ 	
++ 	######################### clean index_matrix NA ##########################
++ 
++ 	rank_geneSet_match_index <- match(geneSet, geneList)
++ 	
++ 	if (sum(is.na(rank_geneSet_match_index)) == length(geneSet))
++ 	{
++ 		print (paste0("there is no gene matched !!!","/",setName))
++ 	
++ 	}else if (sum(!is.na(rank_geneSet_match_index)) == 1)
++ 	{
++ 	
++ 		print (paste0("there is only one gene matched !!!","/", setName))
++ 
++ 	}else{
++ 	
++ #		print (paste("there are ", eval(sum(!is.na(rank_geneSet_match_index))), " of ", length(rank_geneSet_match_index)," gene matched.", sep = ""))
++ 		rank_geneSet <- data.frame(geneSet, rank_geneSet_match_index)
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 
++ 		#print(rank_geneSet)
++ 
++ 		index_matrix_primitive <- data.frame(apply(per_matrix, 2, function(per_matrix) {match (geneSet, per_matrix)}))
++ 		index_matrix <- apply(index_matrix_primitive, 2, function(index_matrix_primitive) {index_matrix_primitive [which(!is.na(index_matrix_primitive))]})
++ 
++ 
++ 		######################### permutation by matrix ##########################
++ 
++ 		decrease_value <- -((nrow(index_matrix) /(length(geneList)-nrow(index_matrix)))^0.5)
++ 
++ 		increase_value <- ((length(geneList)- nrow(index_matrix))/nrow(index_matrix))^0.5
++ 
++ 		######################### input increase/decrease values  ##########################
++ 	
++ 		gsea_matrix <- matrix(decrease_value, nrow=length(geneList), ncol=nPerm)
++ 
++ 		for (i in 1: ncol(index_matrix))
++ 		{
++ 			gsea_matrix[index_matrix[,i],i] <- increase_value
++ 		}
++ 
++ 		######################### extra max cumsum both positive and negative ##########################
++ 
++ 		max_cumsum_index <- apply(gsea_matrix, 2, function(gsea_matrix){which(abs(cumsum(gsea_matrix)) == max(abs(cumsum(gsea_matrix))))})
++ 	
++ 		max_cumsum <- c()
++ 		for (i in 1: ncol(gsea_matrix))
++ 		{
++ 		
++ 			max_cumsum <- c(max_cumsum, (cumsum(gsea_matrix[,i]))[as.numeric(unlist(max_cumsum_index[i]))])
++ 		}
++ 	
++ 		######################### calculate p value of permutation test ##########################
++ 
++ 		gsea_score <- max_cumsum[1]
++ 		MES <- (nrow(index_matrix))*increase_value
++ 	
++ 		if (gsea_score >0)		
++ 		{
++ 
++ 			pvalue = sum(max_cumsum >= gsea_score) / length(max_cumsum)
++ 	
++ 		}	else
++ 		{
++ 			pvalue = sum(max_cumsum <= gsea_score) / length(max_cumsum)
++ 		}
++ 
++ 
++ 		######################### plot enrichment bar ##########################
++ 
++ 		total_rank = length(geneList)
++ 
++ 		pdf(file= paste("../source/",setName, '.pdf', sep=""))
++ 		layout(matrix(c(1,1,1,1,2,2), nrow = 6, ncol = 1, byrow = TRUE))
++ 
++ 		plot(1:total_rank, cumsum(gsea_matrix[,1]),  main = setName, type = "l", col = "green", xaxt='n', ann=FALSE,bty="n")
++ 		title(main = setName); lines(1:total_rank,replicate(total_rank,0), col = "red")
++ 		plot(1:total_rank,replicate(total_rank,1),  type = "l",bty="n", axes=FALSE, xaxt='n', ann=FALSE, col = "white")
++ 		segments(c(1:total_rank),1.0,c(1:total_rank),5.5, col=2)
++ 
++ 		query_index <- match(geneSet, geneList)
++ 
++ 
++ 		query_index_clean <- query_index[which(!is.na(query_index))]
++ 		segments(query_index_clean,1.0,query_index_clean,5.5, col=3)
++ 
++ 		dev.off()
++ 		######################### print results ##########################
++ 
++ 		output <- c(pvalue, gsea_score/MES)
++ 		sprintf("the pvalue is %f", pvalue)
++ 
++ 		sprintf ("the enrichment socres of gene sets is %f", gsea_score/MES)
++ 
++ 		######################### return results ##########################
++ 
++ 		bla <- paste(eval(pvalue), eval(gsea_score/MES), sep="/")
++ 
++ 		print (paste("there are ", eval(sum(!is.na(rank_geneSet_match_index))), " of ", length(rank_geneSet_match_index)," gene matched.", "\t", setName,"/",eval(bla),sep = ""))
++ 	}
++ 	
++ }
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> pathways <- read.csv(paste0("../lib/",tolower(argv[2]),"/annotation_pathway_formatted.txt"), header = F, sep = "\t")
+> 
+> annotations <- read.csv(paste0("../lib/", tolower(argv[2]),"/", tolower(argv[2]), "_annotations.txt"), header = T, sep = "\t")
+> 
+> match_index <- match(w[,1], annotations[,1])
+> 
+> annotations_2 <- annotations[match_index[which(!is.na(match_index))],2]
+> 
+> 
+> 
+> files <- list.files(paste0("../lib/",tolower(argv[2]),"/"))
+> 
+> if (argv[2] == "Human"){ files_index <- grep ("hsa*", files) 
++ }else if (argv[2] == "Mouse"){ files_index <- grep ("mmu*", files)
++ }else if (argv[2] == "Rat"){ files_index <- grep ("mmu*", files) }
+> 
+> pathway_files <- files[files_index]
+> for (i in 1:length(pathway_files))
++ {
++ 	x <- read.csv(paste0("../lib/",argv[2],"/",pathway_files[i]), header = T, sep = "\t")
++ 	inputSet = x[,1]	
++ 	inputList = annotations_2
++ 
++ 	setName = pathways[i,1]
++ 	
++ 	nPerm = 1000
++ 
++ 	gsea(inputSet, inputList, nPerm, setName)	
++ }
+[1] "there are 59 of 66 gene matched.\tpath:mmu00010/0.001/0.275466992416145"
+[1] "there are 29 of 32 gene matched.\tpath:mmu00020/0.002/0.313148102207889"
+[1] "there are 30 of 31 gene matched.\tpath:mmu00030/0.004/0.312572696204808"
+[1] "there are 32 of 36 gene matched.\tpath:mmu00040/0.001/0.600102311566829"
+[1] "there are 34 of 35 gene matched.\tpath:mmu00051/0.001/0.38944704118529"
+[1] "there are 29 of 32 gene matched.\tpath:mmu00052/0.005/0.304593566526089"
+[1] "there are 23 of 27 gene matched.\tpath:mmu00053/0.001/0.730526502300809"
+[1] "there are 13 of 14 gene matched.\tpath:mmu00061/0.353/0.189409715823228"
+[1] "there are 26 of 27 gene matched.\tpath:mmu00062/0.003/0.33923063090479"
+[1] "there are 46 of 49 gene matched.\tpath:mmu00071/0.001/0.320761437081375"
+[1] "there are 9 of 11 gene matched.\tpath:mmu00072/0.053/0.389720558882236"
+[1] "there are 17 of 19 gene matched.\tpath:mmu00100/0.001/0.546316657504123"
+[1] "there are 16 of 16 gene matched.\tpath:mmu00120/0.001/0.468845474150842"
+[1] "there are 11 of 11 gene matched.\tpath:mmu00130/0.00999000999000999/0.456401964307103"
+[1] "there are 69 of 87 gene matched.\tpath:mmu00140/0.001/0.58432535535117"
+[1] "there are 125 of 134 gene matched.\tpath:mmu00190/0.001/0.413404727448143"
+[1] "there are 19 of 19 gene matched.\tpath:mmu00220/0.019/0.316325565261266"
+[1] "there are 165 of 179 gene matched.\tpath:mmu00230/0.01/0.120744680851064"
+[1] "there are 5 of 6 gene matched.\tpath:mmu00232/0.003/0.680914750957854"
+[1] "there are 97 of 104 gene matched.\tpath:mmu00240/0.001/0.208937893610631"
+[1] "there are 35 of 37 gene matched.\tpath:mmu00250/0.069/0.184454839870457"
+[1] "there are 39 of 40 gene matched.\tpath:mmu00260/0.001/0.356784027809823"
+[1] "there are 43 of 48 gene matched.\tpath:mmu00270/0.001/0.286123537964774"
+[1] "there are 53 of 56 gene matched.\tpath:mmu00280/0.001/0.293628677070306"
+[1] "there are 4 of 4 gene matched.\tpath:mmu00290/0.277/0.361718048488477"
+[1] "there are 2 of 2 gene matched.\tpath:mmu00300/0.029/0.860058658047525"
+[1] "there are 51 of 53 gene matched.\tpath:mmu00310/0.288/-0.107925533041888"
+[1] "there are 48 of 50 gene matched.\tpath:mmu00330/0.002/0.249907468539303"
+[1] "there are 25 of 25 gene matched.\tpath:mmu00340/0.003/0.341069287940542"
+[1] "there are 34 of 39 gene matched.\tpath:mmu00350/0.006/0.27813034659141"
+[1] "there are 22 of 23 gene matched.\tpath:mmu00360/0.001/0.446245580391922"
+[1] "there are 43 of 46 gene matched.\tpath:mmu00380/0.008/0.231420884742366"
+[1] "there are 7 of 8 gene matched.\tpath:mmu00400/0.301/0.279068375044905"
+[1] "there are 31 of 33 gene matched.\tpath:mmu00410/0.04995004995005/0.211476196186593"
+[1] "there are 10 of 11 gene matched.\tpath:mmu00430/0.061/0.364423019342476"
+[1] "there are 17 of 17 gene matched.\tpath:mmu00450/0.16/0.216486235040386"
+[1] "there are 3 of 3 gene matched.\tpath:mmu00471/0.435/0.304840576240073"
+[1] "there is only one gene matched !!!/path:mmu00472"
+[1] "there are 53 of 57 gene matched.\tpath:mmu00480/0.002/0.240521858517753"
+[1] "there are 44 of 54 gene matched.\tpath:mmu00500/0.000999000999000999/0.393444344434443"
+[1] "there are 46 of 49 gene matched.\tpath:mmu00510/0.068/0.167344207029894"
+[1] "there are 17 of 18 gene matched.\tpath:mmu00511/0.18/0.212486432387477"
+[1] "there are 25 of 28 gene matched.\tpath:mmu00512/0.003/-0.317295612562935"
+[1] "there are 29 of 31 gene matched.\tpath:mmu00514/0.242/-0.148579756884148"
+[1] "there are 48 of 49 gene matched.\tpath:mmu00520/0.001/0.3481946361763"
+[1] "there are 5 of 5 gene matched.\tpath:mmu00524/0.039/0.530244252873563"
+[1] "there are 20 of 21 gene matched.\tpath:mmu00531/0.027/0.296380849661454"
+[1] "there are 20 of 20 gene matched.\tpath:mmu00532/0.356/-0.142180478159267"
+[1] "there are 15 of 15 gene matched.\tpath:mmu00533/0.356/-0.16815622379298"
+[1] "there are 23 of 24 gene matched.\tpath:mmu00534/0.034/-0.2744581502848"
+[1] "there are 56 of 59 gene matched.\tpath:mmu00561/0.127/0.134330150723593"
+[1] "there are 68 of 70 gene matched.\tpath:mmu00562/0.001/-0.230322343467764"
+[1] "there are 25 of 25 gene matched.\tpath:mmu00563/0.069/0.21684967633661"
+[1] "there are 89 of 94 gene matched.\tpath:mmu00564/0.394/-0.0642119282305061"
+[1] "there are 41 of 44 gene matched.\tpath:mmu00565/0.149/-0.149311957482426"
+[1] "there are 76 of 89 gene matched.\tpath:mmu00590/0.001/0.251029975286922"
+[1] "there are 40 of 50 gene matched.\tpath:mmu00591/0.001/0.431849541064251"
+[1] "there are 22 of 25 gene matched.\tpath:mmu00592/0.156/0.205399412716486"
+[1] "there are 45 of 48 gene matched.\tpath:mmu00600/0.123/0.151552248359738"
+[1] "there are 23 of 26 gene matched.\tpath:mmu00601/0.368/-0.146373684786517"
+[1] "there are 14 of 15 gene matched.\tpath:mmu00603/0.245/-0.214675052410901"
+[1] "there are 15 of 15 gene matched.\tpath:mmu00604/0.31/-0.18957310011581"
+[1] "there are 36 of 39 gene matched.\tpath:mmu00620/0.002/0.364654764522815"
+[1] "there are 27 of 29 gene matched.\tpath:mmu00630/0.001/0.367488577175665"
+[1] "there are 29 of 31 gene matched.\tpath:mmu00640/0.001/0.318624410816175"
+[1] "there are 22 of 27 gene matched.\tpath:mmu00650/0.045/0.274974531072092"
+[1] "there are 19 of 19 gene matched.\tpath:mmu00670/0.274/0.171807890006622"
+[1] "there are 4 of 4 gene matched.\tpath:mmu00730/0.125/0.481293026040108"
+[1] "there are 4 of 4 gene matched.\tpath:mmu00740/0.368/0.304684226279557"
+[1] "there are 8 of 9 gene matched.\tpath:mmu00750/0.067/0.392431590922699"
+[1] "there are 30 of 35 gene matched.\tpath:mmu00760/0.043/0.226220596758399"
+[1] "there are 18 of 18 gene matched.\tpath:mmu00770/0.136/0.22507805270971"
+[1] "there are 3 of 3 gene matched.\tpath:mmu00780/0.106/0.574284688135999"
+[1] "there are 3 of 3 gene matched.\tpath:mmu00785/0.166/0.506644319406201"
+[1] "there are 10 of 13 gene matched.\tpath:mmu00790/0.006/0.491047368105875"
+[1] "there are 78 of 89 gene matched.\tpath:mmu00830/0.001/0.471478194104615"
+[1] "there are 38 of 41 gene matched.\tpath:mmu00860/0.001/0.463870446315537"
+[1] "there are 22 of 23 gene matched.\tpath:mmu00900/0.0139720558882236/0.304248816443938"
+[1] "there are 17 of 17 gene matched.\tpath:mmu00910/0.014/0.333435530934157"
+[1] "there are 11 of 11 gene matched.\tpath:mmu00920/0.257/0.23469876631932"
+[1] "there are 44 of 66 gene matched.\tpath:mmu00970/0.004995004995005/0.241899189918992"
+[1] "there are 62 of 65 gene matched.\tpath:mmu00980/0.001/0.425031537213912"
+[1] "there are 61 of 67 gene matched.\tpath:mmu00982/0.001/0.433763520060501"
+[1] "there are 46 of 51 gene matched.\tpath:mmu00983/0.001/0.478958849207695"
+[1] "there are 27 of 28 gene matched.\tpath:mmu01040/0.002/0.36826786023525"
+[1] "there is no gene matched !!!/path:mmu01100"
+[1] "there is no gene matched !!!/path:mmu01200"
+[1] "there is no gene matched !!!/path:mmu01210"
+[1] "there is no gene matched !!!/path:mmu01212"
+[1] "there is no gene matched !!!/path:mmu01230"
+[1] "there are 45 of 46 gene matched.\tpath:mmu02010/0.256/0.117430788926228"
+[1] "there are 75 of 81 gene matched.\tpath:mmu03008/0.001/0.280217225762494"
+[1] "there are 132 of 142 gene matched.\tpath:mmu03010/0.001/0.366753131849349"
+[1] "there are 156 of 167 gene matched.\tpath:mmu03013/0.001/0.180098270202783"
+[1] "there are 87 of 96 gene matched.\tpath:mmu03015/0.002/-0.182116347673835"
+[1] "there are 72 of 81 gene matched.\tpath:mmu03018/0.002/-0.200268143962921"
+[1] "there are 28 of 30 gene matched.\tpath:mmu03020/0.006/0.285144775493076"
+[1] "there are 39 of 44 gene matched.\tpath:mmu03022/0.023/0.216325965576116"
+[1] "there are 35 of 35 gene matched.\tpath:mmu03030/0.04/-0.218243972652033"
+[1] "there are 127 of 132 gene matched.\tpath:mmu03040/0.001/0.211540452269181"
+[1] "there are 45 of 45 gene matched.\tpath:mmu03050/0.001/0.474946658131968"
+[1] "there are 26 of 30 gene matched.\tpath:mmu03060/0.002/0.385784239137953"
+[1] "there are 78 of 85 gene matched.\tpath:mmu03320/0.001/0.274939138988204"
+[1] "there are 33 of 35 gene matched.\tpath:mmu03410/0.208/0.151395218677541"
+[1] "there are 43 of 44 gene matched.\tpath:mmu03420/0.092/-0.161166446657866"
+[1] "there are 22 of 22 gene matched.\tpath:mmu03430/0.086/-0.218073949781267"
+[1] "there are 28 of 28 gene matched.\tpath:mmu03440/0.273/0.145180145075235"
+[1] "there are 13 of 13 gene matched.\tpath:mmu03450/0.437/0.158886513582249"
+[1] "there are 51 of 51 gene matched.\tpath:mmu03460/0.091/-0.142632992685608"
+[1] "there are 237 of 252 gene matched.\tpath:mmu04010/0.003/-0.123316795871987"
+[1] "there are 86 of 87 gene matched.\tpath:mmu04012/0.003/-0.191628578503586"
+[1] "there are 212 of 229 gene matched.\tpath:mmu04014/0.035/-0.0907386248614672"
+[1] "there are 199 of 214 gene matched.\tpath:mmu04015/0.048/-0.0893528819141133"
+[1] "there are 163 of 180 gene matched.\tpath:mmu04020/0.001/-0.159845873078141"
+[1] "there are 156 of 172 gene matched.\tpath:mmu04022/0.01/-0.126974427131498"
+[1] "there are 178 of 198 gene matched.\tpath:mmu04024/0.004/-0.129368792306453"
+[1] "there are 214 of 264 gene matched.\tpath:mmu04060/0.001/-0.161627001102005"
+[1] "there are 174 of 196 gene matched.\tpath:mmu04062/0.002/-0.12522792126767"
+[1] "there are 91 of 100 gene matched.\tpath:mmu04064/0.002/-0.179615245748354"
+[1] "there are 101 of 109 gene matched.\tpath:mmu04066/0.328/-0.0702494563040119"
+[1] "there are 125 of 134 gene matched.\tpath:mmu04068/0.003/-0.164462614568259"
+[1] "there are 97 of 97 gene matched.\tpath:mmu04070/0.001/-0.256220196057502"
+[1] "there are 119 of 124 gene matched.\tpath:mmu04071/0.093/-0.101719675211857"
+[1] "there are 134 of 144 gene matched.\tpath:mmu04072/0.003/-0.145325409153328"
+[1] "there are 198 of 285 gene matched.\tpath:mmu04080/0.001/0.151134933613281"
+[1] "there are 120 of 124 gene matched.\tpath:mmu04110/0.04/0.113951514055499"
+[1] "there are 107 of 115 gene matched.\tpath:mmu04114/0.217/0.0828393606445344"
+[1] "there are 65 of 68 gene matched.\tpath:mmu04115/0.07/0.142471299428762"
+[1] "there are 137 of 140 gene matched.\tpath:mmu04120/0.007/-0.130308620115541"
+[1] "there are 10 of 10 gene matched.\tpath:mmu04122/0.208/-0.266848314270316"
+[1] "there are 32 of 33 gene matched.\tpath:mmu04130/0.011/0.255707711219044"
+[1] "there are 25 of 40 gene matched.\tpath:mmu04140/0.176/0.184495324862143"
+[1] "there are 159 of 167 gene matched.\tpath:mmu04141/0.001/0.175376313439359"
+[1] "there are 121 of 124 gene matched.\tpath:mmu04142/0.001/0.22710831488261"
+[1] "there are 265 of 286 gene matched.\tpath:mmu04144/0.034/-0.0809475727798864"
+[1] "there are 157 of 183 gene matched.\tpath:mmu04145/0.003/0.133179202851927"
+[1] "there are 83 of 83 gene matched.\tpath:mmu04146/0.001/0.315484239375401"
+[1] "there are 146 of 156 gene matched.\tpath:mmu04150/0.111/-0.0896547759943561"
+[1] "there are 305 of 344 gene matched.\tpath:mmu04151/0.008/-0.0907307693845164"
+[1] "there are 122 of 129 gene matched.\tpath:mmu04152/0.285/0.0722954081163699"
+[1] "there are 134 of 138 gene matched.\tpath:mmu04210/0.389/0.0545016996465635"
+[1] "there are 91 of 95 gene matched.\tpath:mmu04211/0.027/-0.13548330355407"
+[1] "there are 60 of 64 gene matched.\tpath:mmu04213/0.24/-0.106427813482291"
+[1] "there are 71 of 78 gene matched.\tpath:mmu04260/0.046/0.154537635719353"
+[1] "there are 141 of 151 gene matched.\tpath:mmu04261/0.001/-0.16461580214444"
+[1] "there are 117 of 128 gene matched.\tpath:mmu04270/0.096/-0.100453621970015"
+[1] "there are 131 of 146 gene matched.\tpath:mmu04310/0.007/-0.135982664415914"
+[1] "there are 25 of 26 gene matched.\tpath:mmu04320/0.023/-0.284274754255574"
+[1] "there are 48 of 49 gene matched.\tpath:mmu04330/0.004/-0.224397545165356"
+[1] "there are 42 of 44 gene matched.\tpath:mmu04340/0.013/-0.219045619087618"
+[1] "there are 82 of 85 gene matched.\tpath:mmu04350/0.373/0.0737912328903767"
+[1] "there are 166 of 176 gene matched.\tpath:mmu04360/0.001/-0.14670457202078"
+[1] "there are 58 of 60 gene matched.\tpath:mmu04370/0.111/-0.13969959347994"
+[1] "there are 123 of 132 gene matched.\tpath:mmu04380/0.037/-0.113906919245245"
+[1] "there are 145 of 154 gene matched.\tpath:mmu04390/0.001/-0.171891680337083"
+[1] "there are 197 of 203 gene matched.\tpath:mmu04510/0.001/-0.193206970841695"
+[1] "there are 79 of 83 gene matched.\tpath:mmu04512/0.001/-0.243614179041994"
+[1] "there are 143 of 169 gene matched.\tpath:mmu04514/0.001/-0.182245377464501"
+[1] "there are 73 of 74 gene matched.\tpath:mmu04520/0.002/-0.222662026896613"
+[1] "there are 129 of 140 gene matched.\tpath:mmu04530/0.03/-0.114267212762177"
+[1] "there are 77 of 86 gene matched.\tpath:mmu04540/0.170829170829171/-0.107022607022607"
+[1] "there are 127 of 140 gene matched.\tpath:mmu04550/0.001/-0.18485845100987"
+[1] "there are 83 of 87 gene matched.\tpath:mmu04610/0.001/0.519219425518748"
+[1] "there are 117 of 123 gene matched.\tpath:mmu04611/0.002/-0.183677748106388"
+[1] "there are 72 of 91 gene matched.\tpath:mmu04612/0.034/-0.148015133604483"
+[1] "there are 22 of 35 gene matched.\tpath:mmu04614/0.488511488511489/0.105711032540301"
+[1] "there are 86 of 101 gene matched.\tpath:mmu04620/0.155/-0.10004001180768"
+[1] "there are 57 of 58 gene matched.\tpath:mmu04621/0.347/0.0899939315018268"
+[1] "there are 52 of 68 gene matched.\tpath:mmu04622/0.108/-0.135803381345796"
+[1] "there are 47 of 64 gene matched.\tpath:mmu04623/0.149/0.134276746425169"
+[1] "there are 129 of 161 gene matched.\tpath:mmu04630/0.001/-0.174916542766572"
+[1] "there are 79 of 85 gene matched.\tpath:mmu04640/0.001/-0.226382852401866"
+[1] "there are 100 of 119 gene matched.\tpath:mmu04650/0.054/-0.117622975495213"
+[1] "there are 103 of 105 gene matched.\tpath:mmu04660/0.001/-0.291531660681775"
+[1] "there are 71 of 73 gene matched.\tpath:mmu04662/0.001/-0.239362125390883"
+[1] "there are 63 of 67 gene matched.\tpath:mmu04664/0.003/-0.210928217656561"
+[1] "there are 87 of 88 gene matched.\tpath:mmu04666/0.015/-0.158667297322341"
+[1] "there are 108 of 109 gene matched.\tpath:mmu04668/0.245/-0.0786041447748574"
+[1] "there are 111 of 121 gene matched.\tpath:mmu04670/0.001/-0.198649245703108"
+[1] "there are 41 of 42 gene matched.\tpath:mmu04672/0.003/-0.254464520887109"
+[1] "there are 30 of 31 gene matched.\tpath:mmu04710/0.027/-0.239842516537762"
+[1] "there are 86 of 97 gene matched.\tpath:mmu04713/0.049/-0.129343764383615"
+[1] "there are 60 of 66 gene matched.\tpath:mmu04720/0.027/-0.165464392255791"
+[1] "there are 54 of 62 gene matched.\tpath:mmu04721/0.001/0.240789663875824"
+[1] "there are 120 of 122 gene matched.\tpath:mmu04722/0.008/-0.145864729640123"
+[1] "there are 84 of 102 gene matched.\tpath:mmu04723/0.223/0.0901303258145363"
+[1] "there are 100 of 114 gene matched.\tpath:mmu04724/0.159/-0.0952519718225058"
+[1] "there are 101 of 112 gene matched.\tpath:mmu04725/0.1/-0.107478919857304"
+[1] "there are 110 of 132 gene matched.\tpath:mmu04726/0.003/0.194951503102597"
+[1] "there are 75 of 88 gene matched.\tpath:mmu04727/0.011/0.170920604384594"
+[1] "there are 117 of 133 gene matched.\tpath:mmu04728/0.201/-0.0803904054265674"
+[1] "there are 53 of 61 gene matched.\tpath:mmu04730/0.031/-0.172847225998224"
+[1] "there are 83 of 1120 gene matched.\tpath:mmu04740/0.001/-0.256765060965624"
+[1] "there are 44 of 88 gene matched.\tpath:mmu04742/0.067/0.168046804680468"
+[1] "there are 22 of 26 gene matched.\tpath:mmu04744/0.181818181818182/0.189488823635165"
+[1] "there are 111 of 126 gene matched.\tpath:mmu04750/0.091/0.100580879710895"
+[1] "there are 203 of 218 gene matched.\tpath:mmu04810/0.017/-0.103947571833858"
+[1] "there are 136 of 142 gene matched.\tpath:mmu04910/0.1/-0.08673702088088"
+[1] "there are 73 of 85 gene matched.\tpath:mmu04911/0.138/-0.109770196339347"
+[1] "there are 84 of 88 gene matched.\tpath:mmu04912/0.017/-0.160917293233083"
+[1] "there are 40 of 58 gene matched.\tpath:mmu04913/0.22/0.134177215189873"
+[1] "there are 82 of 89 gene matched.\tpath:mmu04914/0.055/-0.137641244698969"
+[1] "there are 92 of 97 gene matched.\tpath:mmu04915/0.008/-0.165675670018394"
+[1] "there are 94 of 99 gene matched.\tpath:mmu04916/0.014/-0.141909707326756"
+[1] "there are 66 of 74 gene matched.\tpath:mmu04917/0.067/-0.141010234533037"
+[1] "there are 63 of 70 gene matched.\tpath:mmu04918/0.38/0.0806600184228443"
+[1] "there are 116 of 117 gene matched.\tpath:mmu04919/0.031/-0.12424121513642"
+[1] "there are 69 of 72 gene matched.\tpath:mmu04920/0.167/-0.111243206521739"
+[1] "there are 143 of 158 gene matched.\tpath:mmu04921/0.002/-0.165468661484598"
+[1] "there are 92 of 101 gene matched.\tpath:mmu04922/0.158/-0.101661865402377"
+[1] "there are 52 of 57 gene matched.\tpath:mmu04923/0.142/-0.139906530403018"
+[1] "there are 62 of 71 gene matched.\tpath:mmu04924/0.013986013986014/-0.186610200036042"
+[1] "there are 79 of 85 gene matched.\tpath:mmu04925/0.13/-0.114991969675057"
+[1] "there are 44 of 50 gene matched.\tpath:mmu04930/0.071/-0.167656765676568"
+[1] "there are 107 of 111 gene matched.\tpath:mmu04931/0.089/-0.105758567541125"
+[1] "there are 146 of 153 gene matched.\tpath:mmu04932/0.001/0.229619328111263"
+[1] "there are 101 of 102 gene matched.\tpath:mmu04933/0.001/-0.199357580266697"
+[1] "there are 49 of 70 gene matched.\tpath:mmu04940/0.029/-0.189075630252101"
+[1] "there are 16 of 27 gene matched.\tpath:mmu04950/0.002/0.446684238902534"
+[1] "there are 37 of 40 gene matched.\tpath:mmu04960/0.012/-0.237911435908077"
+[1] "there are 43 of 54 gene matched.\tpath:mmu04961/0.077/0.165892682218917"
+[1] "there are 42 of 43 gene matched.\tpath:mmu04962/0.462/-0.0762884742305154"
+[1] "there are 21 of 22 gene matched.\tpath:mmu04964/0.347/0.144495046340684"
+[1] "there are 23 of 27 gene matched.\tpath:mmu04966/0.001/0.442714277525027"
+[1] "there are 73 of 77 gene matched.\tpath:mmu04970/0.001/-0.222019749215268"
+[1] "there are 66 of 73 gene matched.\tpath:mmu04971/0.172/0.112629934507"
+[1] "there are 91 of 103 gene matched.\tpath:mmu04972/0.001/-0.205106603590176"
+[1] "there are 38 of 45 gene matched.\tpath:mmu04973/0.244/-0.130385573435117"
+[1] "there are 80 of 90 gene matched.\tpath:mmu04974/0.001/-0.187657856756269"
+[1] "there are 37 of 40 gene matched.\tpath:mmu04975/0.001/0.29439228095658"
+[1] "there are 66 of 71 gene matched.\tpath:mmu04976/0.001/0.293486751186685"
+[1] "there are 24 of 24 gene matched.\tpath:mmu04977/0.154/0.187671061831985"
+[1] "there are 44 of 46 gene matched.\tpath:mmu04978/0.001/0.321317131713171"
+[1] "there are 164 of 172 gene matched.\tpath:mmu05010/0.001/0.221190913178397"
+[1] "there are 135 of 144 gene matched.\tpath:mmu05012/0.001/0.328552529843709"
+[1] "there are 48 of 52 gene matched.\tpath:mmu05014/0.198/0.130589400396135"
+[1] "there are 183 of 194 gene matched.\tpath:mmu05016/0.001/0.247973221861362"
+[1] "there are 34 of 34 gene matched.\tpath:mmu05020/0.084/0.192320310433019"
+[1] "there are 42 of 48 gene matched.\tpath:mmu05030/0.266/-0.121787564248715"
+[1] "there are 61 of 67 gene matched.\tpath:mmu05031/0.052/-0.155211870081376"
+[1] "there are 78 of 92 gene matched.\tpath:mmu05032/0.013/-0.15426011664963"
+[1] "there are 26 of 40 gene matched.\tpath:mmu05033/0.073/0.208030745254266"
+[1] "there are 150 of 198 gene matched.\tpath:mmu05034/0.022/0.11250357308211"
+[1] "there are 75 of 78 gene matched.\tpath:mmu05100/0.033/-0.141207166045449"
+[1] "there are 76 of 78 gene matched.\tpath:mmu05132/0.259/0.0886799229179785"
+[1] "there are 71 of 74 gene matched.\tpath:mmu05133/0.068/0.13602748840682"
+[1] "there are 56 of 58 gene matched.\tpath:mmu05134/0.006/0.213475049540623"
+[1] "there are 64 of 65 gene matched.\tpath:mmu05140/0.086/-0.140594960949234"
+[1] "there are 100 of 103 gene matched.\tpath:mmu05142/0.193/-0.0909603227165994"
+[1] "there are 33 of 35 gene matched.\tpath:mmu05143/0.018/-0.236227712481011"
+[1] "there are 47 of 49 gene matched.\tpath:mmu05144/0.06/-0.167637151168285"
+[1] "there are 111 of 113 gene matched.\tpath:mmu05145/0.001/-0.175253938116934"
+[1] "there are 99 of 109 gene matched.\tpath:mmu05146/0.008/-0.149086895444511"
+[1] "there are 49 of 51 gene matched.\tpath:mmu05150/0.003/0.273469387755102"
+[1] "there are 157 of 176 gene matched.\tpath:mmu05152/0.232/0.0676158980152878"
+[1] "there are 115 of 136 gene matched.\tpath:mmu05160/0.108/-0.097789667297242"
+[1] "there are 129 of 145 gene matched.\tpath:mmu05161/0.152/-0.081639876193415"
+[1] "there are 121 of 137 gene matched.\tpath:mmu05162/0.017/-0.138972312953504"
+[1] "there are 151 of 170 gene matched.\tpath:mmu05164/0.231/-0.0660859799268716"
+[1] "there are 260 of 285 gene matched.\tpath:mmu05166/0.001/-0.115463413721666"
+[1] "there are 181 of 215 gene matched.\tpath:mmu05168/0.192/-0.0643963299513833"
+[1] "there are 198 of 220 gene matched.\tpath:mmu05169/0.229/-0.0621202026931541"
+[1] "there are 369 of 395 gene matched.\tpath:mmu05200/0.01/-0.0794734520172619"
+[1] "there are 162 of 176 gene matched.\tpath:mmu05202/0.003/-0.150983319493221"
+[1] "there are 203 of 235 gene matched.\tpath:mmu05203/0.249/0.0554887042120523"
+[1] "there are 85 of 93 gene matched.\tpath:mmu05204/0.001/0.454082686972768"
+[1] "there are 195 of 207 gene matched.\tpath:mmu05205/0.004/-0.136018234722365"
+[1] "there are 137 of 280 gene matched.\tpath:mmu05206/0.003/-0.167801726947749"
+[1] "there are 62 of 64 gene matched.\tpath:mmu05210/0.089/-0.133687751546825"
+[1] "there are 66 of 67 gene matched.\tpath:mmu05211/0.005/-0.194716497426345"
+[1] "there are 66 of 66 gene matched.\tpath:mmu05212/0.03/-0.159806925834685"
+[1] "there are 52 of 52 gene matched.\tpath:mmu05213/0.002/-0.229898725876393"
+[1] "there are 65 of 65 gene matched.\tpath:mmu05214/0.061/-0.142071987133271"
+[1] "there are 85 of 89 gene matched.\tpath:mmu05215/0.003/-0.170639189265697"
+[1] "there are 28 of 29 gene matched.\tpath:mmu05216/0.332/-0.133280378874168"
+[1] "there are 50 of 55 gene matched.\tpath:mmu05217/0.053/-0.170725733837565"
+[1] "there are 63 of 71 gene matched.\tpath:mmu05218/0.356/-0.0830896978920528"
+[1] "there are 39 of 41 gene matched.\tpath:mmu05219/0.483/-0.0863181209911863"
+[1] "there are 73 of 73 gene matched.\tpath:mmu05220/0.018/-0.175607775841795"
+[1] "there are 56 of 57 gene matched.\tpath:mmu05221/0.016/-0.195497808202726"
+[1] "there are 84 of 85 gene matched.\tpath:mmu05222/0.002/-0.19815037593985"
+[1] "there are 55 of 56 gene matched.\tpath:mmu05223/0.009/-0.203494655938513"
+[1] "there are 65 of 66 gene matched.\tpath:mmu05230/0.125/-0.124164864215333"
+[1] "there are 100 of 101 gene matched.\tpath:mmu05231/0.018/-0.144161599133"
+[1] "there are 19 of 24 gene matched.\tpath:mmu05310/0.084/-0.246977389549368"
+[1] "there are 46 of 78 gene matched.\tpath:mmu05320/0.129/-0.144010812813602"
+[1] "there are 53 of 59 gene matched.\tpath:mmu05321/0.001/-0.249626175846882"
+[1] "there are 101 of 143 gene matched.\tpath:mmu05322/0.001/0.193570079551308"
+[1] "there are 75 of 82 gene matched.\tpath:mmu05323/0.033/0.147874634283195"
+[1] "there are 46 of 63 gene matched.\tpath:mmu05330/0.084/-0.165809956451289"
+[1] "there are 48 of 65 gene matched.\tpath:mmu05332/0.041/-0.177639147310085"
+[1] "there are 33 of 35 gene matched.\tpath:mmu05340/0.000999000999000999/-0.551391220916287"
+[1] "there are 78 of 84 gene matched.\tpath:mmu05410/0.013/-0.162894748608175"
+[1] "there are 71 of 74 gene matched.\tpath:mmu05412/0.001/-0.202156441473701"
+[1] "there are 82 of 88 gene matched.\tpath:mmu05414/0.003/-0.21649476974712"
+[1] "there are 68 of 87 gene matched.\tpath:mmu05416/0.275/-0.0934863218768669"
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
