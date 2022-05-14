@@ -30,7 +30,7 @@ for (i in 1:length(pathway_files)){
 	annotations_1 <- annotations[match_index_1[which(!is.na(match_index_1))],]
 	print (head(match_index_1))
 	match_index <- match(annotations_1[,1], y[,1])
-	output <- data.frame(annotations_1[which(!is.na(match_index)),2], annotations_1[which(!is.na(match_index)),1], y[match_index[which(!is.na(match_index))],6])
+	output <- data.frame(annotations_1[which(!is.na(match_index)),2], annotations_1[which(!is.na(match_index)),1], y[match_index[which(!is.na(match_index))],"log2FoldChange"])
 
 	print(match_index)	
 	
